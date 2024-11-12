@@ -5,11 +5,12 @@
 #define LOAD 10
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 
-#define MESH A0   // Button for hour adjustment
-#define MESM A1   // Button for minute adjustment
-
-int hours = 0, minutes = 0;
+int seconds=0;
+int hours = 00, minutes = 16;
 int h1, h2, m1, m2 = 0;
+
+unsigned long previousMillis = 0;  // Stores the last time the time was updated
+const long interval = 1000;        // Interval in milliseconds (1000 ms = 1 second)
 
 byte nombre[][4] = {
   {0x0F, 0x09, 0x09, 0x0F}, // 0
@@ -29,12 +30,30 @@ void resetMatrix() {
   lc.clearDisplay(0); // Clear all LEDs on the display
 }
 
+void updateMatrix(int h1,int h2,int m1,int m2){
+  resetMatrix();
+
+    // Display hours (top two quadrants)
+    displayDigitRotated(h1, 0, 4);  // Tens place of hours in top-left
+    displayDigitRotated(h2, 4, 4);  // Ones place of hours in top-right
+
+    // Display minutes (bottom two quadrants)
+    displayDigitRotated(m1, 0, 0);  // Tens place of minutes in bottom-left
+    displayDigitRotated(m2, 4, 0);  // Ones place of minutes in bottom-right
+}
+
 // Update time variables and wrap around when limits are reached
 void timeAdapt() {
+  
+  minutes++;
+  seconds=0;
+  
   if (minutes >= 60) {
-    minutes = 0;
-    hours++;
-    if (hours >= 24) hours = 0;
+    minutes = 0;    // Reset minutes to 0
+    hours++;        // Increment hours
+    if (hours >= 24) {
+      hours = 0;    // Reset hours to 0 after 23
+    }
   }
 }
 
@@ -51,48 +70,29 @@ void displayDigitRotated(int digit, int rowOffset, int colOffset) {
 
 void setup() {
   lc.shutdown(0, false);       // Wake up MAX7219
-  lc.setIntensity(0, 8);        // Set brightness level (0 is min, 15 is max)
-  lc.clearDisplay(0);           // Clear the display
-  pinMode(MESH, INPUT);
-  pinMode(MESM, INPUT);
+  lc.setIntensity(0, 8);       // Set brightness level (0 is min, 15 is max)
+  lc.clearDisplay(0);          // Clear the display
 }
 
 void loop() {
-  if (digitalRead(MESH) == HIGH) {
-    hours++;
-    timeAdapt();
-    delay(100);  // debounce delay
+  unsigned long currentMillis = millis();  // Get the current time in milliseconds
+
+  // Check if 1 second (1000 ms) has passed
+  if (currentMillis - previousMillis >= interval) {
+    // Save the last time the time was updated
+    previousMillis = currentMillis;
+    seconds++;
+    // Automatically increment minutes
+    if (seconds>=60){
+      timeAdapt();  // Adjust time if necessary (e.g., overflow)
+    
+     // Calculate the hour and minute digits
+      h2 = hours % 10;
+      h1 = hours / 10;
+      m2 = minutes % 10;
+      m1 = minutes / 10;
+
+      updateMatrix(h1,h2,m1,m2);
+    }
   }
-
-  if (digitalRead(MESM) == HIGH) {
-    minutes++;
-    timeAdapt();
-    delay(100);  // debounce delay
-  }
-
-  // Calculate the hour and minute digits
-  h2 = hours % 10;      // Units place of hours
-  h1 = hours / 10;      // Tens place of hours
-  m2 = minutes % 10;    // Units place of minutes
-  m1 = minutes / 10;    // Tens place of minutes
-
-  // Debugging: Ensure correct values for h1, h2, m1, m2
-  Serial.print("Hours: ");
-  Serial.print(h1);
-  Serial.print(h2);
-  Serial.print(" Minutes: ");
-  Serial.print(m1);
-  Serial.println(m2);
-
-  resetMatrix();
-
-  // Display hours (top two quadrants)
-  displayDigitRotated(h1, 0, 4);  // Tens place of hours in top-left
-  displayDigitRotated(h2, 4, 4);  // Units place of hours in top-right
-
-  // Display minutes (bottom two quadrants)
-  displayDigitRotated(m1, 0, 0);  // Tens place of minutes in bottom-left
-  displayDigitRotated(m2, 4, 0);  // Units place of minutes in bottom-right
-
-  delay(500); // Update display every 500 ms
 }
