@@ -5,17 +5,23 @@
 #define LOAD 10
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 
-int seconds=0;
-int hours = 00, minutes = 16;
+const int buttonPin = 2;
+int hours = 18, minutes = 53, seconds =0;
 int h1, h2, m1, m2 = 0;
 
 unsigned long previousMillis = 0;  // Stores the last time the time was updated
 const long interval = 1000;        // Interval in milliseconds (1000 ms = 1 second)
+int state = HIGH;
+int reading;
+int previous = LOW;
+
+unsigned long time = 0;
+unsigned long debounce = 200UL;
 
 byte nombre[][4] = {
   {0x0F, 0x09, 0x09, 0x0F}, // 0
   {0x02, 0x02, 0x06, 0x02}, // 1
-  {0x07, 0x02, 0x01, 0x06}, // 2
+  {0x07, 0x02, 0x09, 0x06}, // 2
   {0x0F, 0x01, 0x03, 0x0F}, // 3
   {0x01, 0x01, 0x0F, 0x09}, // 4
   {0x08, 0x0F, 0x01, 0x0F}, // 5
@@ -70,13 +76,13 @@ void displayDigitRotated(int digit, int rowOffset, int colOffset) {
 
 void setup() {
   lc.shutdown(0, false);       // Wake up MAX7219
-  lc.setIntensity(0, 8);       // Set brightness level (0 is min, 15 is max)
+  lc.setIntensity(0, 0);       // Set brightness level (0 is min, 15 is max)
   lc.clearDisplay(0);          // Clear the display
+  pinMode(buttonPin, INPUT);
 }
 
 void loop() {
   unsigned long currentMillis = millis();  // Get the current time in milliseconds
-
   // Check if 1 second (1000 ms) has passed
   if (currentMillis - previousMillis >= interval) {
     // Save the last time the time was updated
@@ -85,14 +91,26 @@ void loop() {
     // Automatically increment minutes
     if (seconds>=60){
       timeAdapt();  // Adjust time if necessary (e.g., overflow)
-    
-     // Calculate the hour and minute digits
       h2 = hours % 10;
       h1 = hours / 10;
       m2 = minutes % 10;
       m1 = minutes / 10;
-
       updateMatrix(h1,h2,m1,m2);
     }
   }
+  reading = digitalRead(buttonPin);
+
+  if (reading == HIGH && previous == LOW && millis() - time > debounce)
+  {
+    if (state == false)
+      state = true;
+    else
+      state = false;
+
+    time = millis();
+  }
+
+  lc.shutdown(0, state);
+
+  previous = reading;
 }
