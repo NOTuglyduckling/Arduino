@@ -1,19 +1,25 @@
-#include <LedControl.h>
+#include <LedControl.h>	
+#include <DHT11.h>
 
 #define DATA_IN 12
 #define CLK 11
 #define LOAD 10
+
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
+DHT11 dht11(4); 
 
 const int buttonPin = 2;
+const int ModePin = 3;
 int hours = 20, minutes = 29, seconds =0;
-int h1, h2, m1, m2 = 0;
+int h1, h2, m1, m2, t1, t2 = 0;
 
 unsigned long previousMillis = 0;  // Stores the last time the time was updated
 const long interval = 1000;        // Interval in milliseconds (1000 ms = 1 second)
-int state = HIGH;
-int reading;
+int state = true, Mode = true;
+int reading, readingMode;
 int previous = LOW;
+int previousMode = LOW;
+int temp =0, humid=0 ;
 
 unsigned long time = 0;
 unsigned long debounce = 200UL;
@@ -28,7 +34,9 @@ byte nombre[][4] = {
   {0x09, 0x0E, 0x08, 0x07}, // 6
   {0x08, 0x04, 0x02, 0x0F}, // 7
   {0x09, 0x06, 0x09, 0x06}, // 8
-  {0x01, 0x07, 0x09, 0x06}  // 9
+  {0x01, 0x07, 0x09, 0x06}, // 9
+  {0x0F, 0x08, 0x08, 0x0F}, // C
+  {0x00, 0x02, 0x05, 0x02}  // °
 };
 
 // Reset the entire matrix display
@@ -36,7 +44,7 @@ void resetMatrix() {
   lc.clearDisplay(0); // Clear all LEDs on the display
 }
 
-void updateMatrix(int h1,int h2,int m1,int m2){
+void updateMatrix(int tl,int tr,int bl,int br){
   resetMatrix();
 
     // Display hours (top two quadrants)
@@ -79,6 +87,7 @@ void setup() {
   lc.setIntensity(0, 0);       // Set brightness level (0 is min, 15 is max)
   lc.clearDisplay(0);          // Clear the display
   pinMode(buttonPin, INPUT);
+  pinMode(ModePin,INPUT);
 }
 
 void loop() {
@@ -95,8 +104,29 @@ void loop() {
       h1 = hours / 10;
       m2 = minutes % 10;
       m1 = minutes / 10;
-      updateMatrix(h1,h2,m1,m2);
+      int result = dht11.readTemperatureHumidity(temp, humid);
+      t2 = temp %10;
+      t1 = temp/10;
+      readingMode = digitalRead(ModePin);
+
+      if (readingMode == HIGH && previousMode == LOW && millis() - time > debounce){
+        if (Mode == false)
+        Mode = true;
+        else
+        Mode = false;
+
+        time = millis();
+      }
+      if (Mode){
+        updateMatrix(h1,h2,m1,m2);
+      } else {
+        updateMatrix(t1,t2,11,10);
+      }
+  
+      previousMode = readingMode;
+      
     }
+    
   }
   reading = digitalRead(buttonPin);
 
