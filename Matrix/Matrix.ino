@@ -5,11 +5,12 @@
 #define CLK 11
 #define LOAD 10
 #define ModePin 2
+#define BRIGHTNESS 0
 
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 DHT11 dht11(4);
 
-int hours = 16, minutes = 4, seconds = 0;
+int hours = 17, minutes = 9, seconds = 0; // edit here to set time for now
 int h1, h2, m1, m2, t1, t2,hu1,hu2 = 0;
 int temp = 0, humid = 0;
 unsigned long previousMillis = 0;
@@ -57,17 +58,26 @@ void displayDigitRotated(int digit, int rowOffset, int colOffset) {
 }
 
 void setup() {
-  lc.shutdown(0, false);
-  lc.setIntensity(0, 8);
+  lc.shutdown(0, false); // turn Matrix ON
+  lc.setIntensity(0, BRIGHTNESS); // set brightness of LEDs
   lc.clearDisplay(0);
   pinMode(ModePin, INPUT);
 }
 
 void loop() {
+  int reading = digitalRead(ModePin);
+  // Button cycles through options with protection of debounce
+  if ((reading == HIGH) && (lastButtonState == LOW) && (millis() - lastDebounce >= debounceTime)) {
+    Mode = (Mode + 1) % 3;
+    lastDebounce = millis();
+  }
+  lastButtonState=reading;
+  
   unsigned long currentMillis = millis();
-
+  // Matrix is updated every second
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
+    // increment time variables accordingly
     seconds++;
     if (seconds >= 60) {
       seconds = 0;
@@ -78,35 +88,28 @@ void loop() {
       }
     }
 
-    h2 = hours % 10;
-    h1 = hours / 10;
-    m2 = minutes % 10;
-    m1 = minutes / 10;
-
+    // get temperature and humidity readings from DHT11 sensor
     dht11.readTemperatureHumidity(temp, humid);
-    t2 = temp % 10;
-    t1 = temp / 10;
-    hu2 = humid %10;
-    hu1 = humid /10;
-    
-
+   
     switch (Mode){
     case (0):
+      h2 = hours % 10;
+      h1 = hours / 10;
+      m2 = minutes % 10;
+      m1 = minutes / 10;
       updateMatrix(h1, h2, m1, m2);
       break;
     case (1):
+      t2 = temp % 10;
+      t1 = temp / 10;
       updateMatrix(t1, t2, 10, 11);
       break;
     case (2):
+      hu2 = humid %10;
+      hu1 = humid /10;
       updateMatrix(hu1,hu2,12,13);
       break;
     }
   }
-  int reading = digitalRead(ModePin);
-  if ((reading == LOW) && (lastButtonState == HIGH) && (millis() - lastDebounce >= debounceTime)) {
-    Mode = (Mode + 1) % 3;
-    lastDebounce = millis();
-  }
-  lastButtonState=reading;
 }
 
