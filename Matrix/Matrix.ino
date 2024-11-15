@@ -88,12 +88,7 @@ void loop() {
     t1 = temp / 10;
     hu2 = humid %10;
     hu1 = humid /10;
-    int reading = digitalRead(ModePin);
-    if ((reading == LOW) && (lastButtonState == HIGH) && (millis() - lastDebounce >= debounceTime)) {
-      Mode = (Mode + 1) % 3;
-      lastDebounce = millis();
-    }
-    lastButtonState=reading;
+    
 
     switch (Mode){
     case (0):
@@ -107,5 +102,11 @@ void loop() {
       break;
     }
   }
+  int reading = digitalRead(ModePin);
+  if ((reading == LOW) && (lastButtonState == HIGH) && (millis() - lastDebounce >= debounceTime)) {
+    Mode = (Mode + 1) % 3;
+    lastDebounce = millis();
+  }
+  lastButtonState=reading;
 }
 
