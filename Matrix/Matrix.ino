@@ -16,7 +16,7 @@ int h1, h2, m1, m2, t1, t2,hu1,hu2 = 0;
 int temp = 0, humid = 0;
 unsigned long previousMillis = 0;
 const long interval = 1000;
-int Mode = 0, lastButtonState=LOW, lastOnState=LOW;  // Mode toggle for time/temperature/humidity display
+int Mode = 0, lastButtonState=LOW, lastOnState=LOW;  // Mode toggle for time/temperature/humidity display and On/Off
 unsigned long debounceTime = 200UL, lastDebounce = 0, lastBounce = 0;
 bool ScreenState=false;
 
