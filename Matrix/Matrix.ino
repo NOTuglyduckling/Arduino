@@ -5,26 +5,28 @@
 #define CLK 11
 #define LOAD 10
 #define ModePin 2
+#define OnOff 3
 #define BRIGHTNESS 0
 
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 DHT11 dht11(4);
 
-int hours = 17, minutes = 9, seconds = 0; // edit here to set time for now
+int hours = 17, minutes = 43, seconds = 0; // edit here to set time for now
 int h1, h2, m1, m2, t1, t2,hu1,hu2 = 0;
 int temp = 0, humid = 0;
 unsigned long previousMillis = 0;
 const long interval = 1000;
-int Mode = 0, lastButtonState=LOW;  // Mode toggle for time/temperature/humidity display
-unsigned long debounceTime = 200UL, lastDebounce = 0;
+int Mode = 0, lastButtonState=LOW, lastOnState=LOW;  // Mode toggle for time/temperature/humidity display
+unsigned long debounceTime = 200UL, lastDebounce = 0, lastBounce = 0;
+bool ScreenState=false;
 
 byte nombre[][4] = {
   {0x0F, 0x09, 0x09, 0x0F}, // 0
   {0x02, 0x02, 0x06, 0x02}, // 1
-  {0x0F, 0x02, 0x09, 0x06}, // 2
-  {0x0F, 0x01, 0x03, 0x0F}, // 3
-  {0x01, 0x01, 0x0F, 0x09}, // 4
-  {0x01, 0x0F, 0x08, 0x0F}, // 5
+  {0x08, 0x0F, 0x01, 0x0F}, // 2
+  {0x01, 0x07, 0x01, 0x0F}, // 3
+  {0x01, 0x0F, 0x09, 0x09}, // 4
+  {0x01, 0x0E, 0x08, 0x0F}, // 5
   {0x09, 0x0E, 0x08, 0x07}, // 6
   {0x08, 0x04, 0x02, 0x0F}, // 7
   {0x09, 0x06, 0x09, 0x06}, // 8
@@ -58,10 +60,11 @@ void displayDigitRotated(int digit, int rowOffset, int colOffset) {
 }
 
 void setup() {
-  lc.shutdown(0, false); // turn Matrix ON
+  lc.shutdown(0, ScreenState); // turn Matrix ON
   lc.setIntensity(0, BRIGHTNESS); // set brightness of LEDs
   lc.clearDisplay(0);
   pinMode(ModePin, INPUT);
+  pinMode(OnOff, INPUT);
 }
 
 void loop() {
@@ -72,6 +75,15 @@ void loop() {
     lastDebounce = millis();
   }
   lastButtonState=reading;
+
+  int read = digitalRead(OnOff);
+  // Button for turing matrix On/Off
+  if ((read == HIGH) && (lastOnState == LOW) && (millis() - lastBounce >= debounceTime)) {
+    ScreenState=!ScreenState;
+    lc.shutdown(0, ScreenState);
+    lastBounce = millis();
+  }
+  lastOnState=read;
   
   unsigned long currentMillis = millis();
   // Matrix is updated every second
