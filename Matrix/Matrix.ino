@@ -18,7 +18,7 @@ bool pmFlag;
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 DHT11 dht11(4);
 
-int hours = 16, minutes = 19, seconds = 0; // edit here to set time for now
+int hours,minutes,seconds;
 int h1, h2, m1, m2, t1, t2,hu1,hu2 = 0;
 int temp = 0, humid = 0;
 unsigned long previousMillis = 0;
@@ -57,9 +57,12 @@ void setup() {
   myRTC.setMonth(11);
   myRTC.setDate(25);
   myRTC.setDoW(1);
-  myRTC.setHour(17);
-  myRTC.setMinute(2);
-  myRTC.setSecond(50);
+  myRTC.setHour(17);// edit here to set time for now
+  myRTC.setMinute(6);
+  myRTC.setSecond(10);
+  seconds = myRTC.getSecond();
+  minutes = myRTC.getMinute();
+  hours = myRTC.getHour(h12Flag, pmFlag);
 }
 
 //############################################################################ END OF SETUP ##################################################################################
