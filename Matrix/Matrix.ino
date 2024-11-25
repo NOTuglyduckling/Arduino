@@ -14,6 +14,10 @@ bool pmFlag;
 #define BRIGHTNESS 0
 #define SPEED 1
 #define RAND_MAX 8
+#define TEMP_SYMBOL 10
+#define CELSIUS_SYMBOL 11
+#define HUMIDITY_SYMBOL 12
+#define PERCENT_SYMBOL 13
 
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 DHT11 dht11(4);
@@ -90,30 +94,34 @@ void displayDigitRotated(int digit, int rowOffset, int colOffset) {
   }
 }
 
+bool isButtonPressed(int pin, int &lastState, unsigned long &lastBounceTime, unsigned long debounceDelay) {
+    int currentState = digitalRead(pin);
+    if ((currentState == HIGH) && (lastState == LOW) && (millis() - lastBounceTime >= debounceDelay)) {
+        lastBounceTime = millis();
+        lastState = currentState;  
+        return true;           
+    }
+    lastState = currentState;
+    return false;
+}
+
+
 //################################################################################ MAIN ###################################################################################
 
 void loop() {
-  int reading = digitalRead(ModePin);
-  // Button cycles through options with protection of debounce
-  if ((reading == HIGH) && (lastButtonState == LOW) && (millis() - lastDebounce >= debounceTime)) {
-    Mode = (Mode + 1) % 4;
-    lastDebounce = millis();
+  if (isButtonPressed(ModePin, lastButtonState, lastDebounce, debounceTime)) {
+      Mode = (Mode + 1) % 4;  // Cycle through modes
   }
-  lastButtonState=reading;
 
-  int read = digitalRead(OnOff);
-  // Button for turing matrix On/Off
-  if ((read == HIGH) && (lastOnState == LOW) && (millis() - lastBounce >= debounceTime)) {
-    ScreenState=!ScreenState;
-    lc.shutdown(0, ScreenState);
-    lastBounce = millis();
+  if (isButtonPressed(OnOff, lastOnState, lastBounce, debounceTime)) {
+      ScreenState = !ScreenState;    // Toggle screen state
+      lc.shutdown(0, ScreenState);  // Update the LED matrix
   }
-  lastOnState=read;
 
   unsigned long currentMillis = millis();
   // Matrix is updated every second
   if (currentMillis - previousMillis >= interval) {
-    previousMillis +=1000;
+    previousMillis =currentMillis;
     // increment time variables accordingly
     seconds++;
     if (seconds >= 60) {
@@ -135,18 +143,17 @@ void loop() {
       h2 = hours % 10;
       h1 = hours / 10;
       m2 = minutes % 10;
-      m1 = minutes / 10;
       updateMatrix(h1, h2, m1, m2);
       break;
     case (1):
       t2 = temp % 10;
       t1 = temp / 10;
-      updateMatrix(t1, t2, 10, 11);
+      updateMatrix(t1, t2, TEMP_SYMBOL,CELSIUS_SYMBOL );
       break;
     case (2):
       hu2 = humid %10;
       hu1 = humid /10;
-      updateMatrix(hu1,hu2,12,13);
+      updateMatrix(hu1,hu2,PERCENT_SYMBOL,HUMIDITY_SYMBOL);
       break;
     }
   }
