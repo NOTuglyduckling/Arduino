@@ -12,8 +12,6 @@ bool pmFlag;
 #define ModePin 2
 #define OnOff 3
 #define BRIGHTNESS 0
-#define SPEED 1
-#define RAND_MAX 8
 #define TEMP_SYMBOL 10
 #define CELSIUS_SYMBOL 11
 #define HUMIDITY_SYMBOL 12
@@ -132,6 +130,7 @@ void ModeChangeAnimation() {
         }
         delay(50);
     }
+    delay(100);
     resetMatrix();
 }
 
@@ -141,7 +140,7 @@ void ModeChangeAnimation() {
 
 void loop() {
   if (isButtonPressed(ModePin, lastButtonState, lastDebounce, debounceTime)) {
-      Mode = (Mode + 1) % 4;  // Cycle through modes
+      Mode = (Mode + 1) % 3;  // Cycle through modes
       ModeChangeAnimation();
   }
 
