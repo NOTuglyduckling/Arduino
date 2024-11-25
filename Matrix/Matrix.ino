@@ -54,7 +54,6 @@ void setup() {
   lc.clearDisplay(0);
   pinMode(ModePin, INPUT);
   pinMode(OnOff, INPUT);
-  srand(time(NULL));   // Initialization, should only be called once.
   Wire.begin();
   myRTC.setClockMode(false);  // set to 24h 
   myRTC.setYear(2024);
@@ -62,8 +61,8 @@ void setup() {
   myRTC.setDate(25);
   myRTC.setDoW(1);
   myRTC.setHour(17);// edit here to set time for now
-  myRTC.setMinute(6);
-  myRTC.setSecond(10);
+  myRTC.setMinute(57);
+  myRTC.setSecond(50);
   seconds = myRTC.getSecond();
   minutes = myRTC.getMinute();
   hours = myRTC.getHour(h12Flag, pmFlag);
@@ -94,6 +93,26 @@ void displayDigitRotated(int digit, int rowOffset, int colOffset) {
   }
 }
 
+void displayTime() {
+    h2 = hours % 10;
+    h1 = hours / 10;
+    m2 = minutes % 10;
+    m1 = minutes / 10;
+    updateMatrix(h1, h2, m1, m2);
+}
+
+void displayTemperature() {
+    t2 = temp % 10;
+    t1 = temp / 10;
+    updateMatrix(t1, t2, TEMP_SYMBOL, CELSIUS_SYMBOL);
+}
+
+void displayHumidity() {
+    hu2 = humid % 10;
+    hu1 = humid / 10;
+    updateMatrix(hu1, hu2, HUMIDITY_SYMBOL, PERCENT_SYMBOL);
+}
+
 bool isButtonPressed(int pin, int &lastState, unsigned long &lastBounceTime, unsigned long debounceDelay) {
     int currentState = digitalRead(pin);
     if ((currentState == HIGH) && (lastState == LOW) && (millis() - lastBounceTime >= debounceDelay)) {
@@ -105,12 +124,25 @@ bool isButtonPressed(int pin, int &lastState, unsigned long &lastBounceTime, uns
     return false;
 }
 
+void ModeChangeAnimation() {
+    for (int diag = 0; diag < 8; diag++) {
+        for (int row = 0; row <= diag; row++) {
+            int col = diag - row;
+            if (col < 8 && row < 8) lc.setLed(0, row, col, true);
+        }
+        delay(50);
+    }
+    resetMatrix();
+}
+
+
 
 //################################################################################ MAIN ###################################################################################
 
 void loop() {
   if (isButtonPressed(ModePin, lastButtonState, lastDebounce, debounceTime)) {
       Mode = (Mode + 1) % 4;  // Cycle through modes
+      ModeChangeAnimation();
   }
 
   if (isButtonPressed(OnOff, lastOnState, lastBounce, debounceTime)) {
@@ -118,44 +150,23 @@ void loop() {
       lc.shutdown(0, ScreenState);  // Update the LED matrix
   }
 
-  unsigned long currentMillis = millis();
-  // Matrix is updated every second
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis =currentMillis;
-    // increment time variables accordingly
-    seconds++;
-    if (seconds >= 60) {
-      seconds = 0;
-      minutes++;
-      if (minutes >= 60) {
-        // Every hour update Timekeeping
-        seconds = myRTC.getSecond();
-        minutes = myRTC.getMinute();
-        hours = myRTC.getHour(h12Flag, pmFlag);
-      }
-    }
+  seconds = myRTC.getSecond();
+  if (seconds==0){
+    minutes = myRTC.getMinute();
+    hours = myRTC.getHour(h12Flag, pmFlag);
+  }
 
-    // get temperature and humidity readings from DHT11 sensor
-    dht11.readTemperatureHumidity(temp, humid);
-   
-    switch (Mode){
-    case (0):
-      h2 = hours % 10;
-      h1 = hours / 10;
-      m2 = minutes % 10;
-      updateMatrix(h1, h2, m1, m2);
-      break;
-    case (1):
-      t2 = temp % 10;
-      t1 = temp / 10;
-      updateMatrix(t1, t2, TEMP_SYMBOL,CELSIUS_SYMBOL );
-      break;
-    case (2):
-      hu2 = humid %10;
-      hu1 = humid /10;
-      updateMatrix(hu1,hu2,PERCENT_SYMBOL,HUMIDITY_SYMBOL);
-      break;
+  // get temperature and humidity readings from DHT11 sensor
+  dht11.readTemperatureHumidity(temp, humid);
+
+  if (!ScreenState){
+    switch (Mode) {
+    case 0: displayTime(); break;
+    case 1: displayTemperature(); break;
+    case 2: displayHumidity(); break;
     }
+  } else {
+    lc.clearDisplay(0);
   }
 }
 
