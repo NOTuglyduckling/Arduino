@@ -34,19 +34,28 @@ bool pmFlag;
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 DHT11 dht11(4);
 
+
+// SNake
+unsigned long lastMoveTime = 0;  // Stores the last update time
+const long snakeSpeed = 200;    // Delay in milliseconds between moves
 int command = COMMAND_NO;
 int xValue = 0;
 int yValue = 0;
+int row=0;int col=0;
 
+// Time and humidity
 int hours,minutes,seconds;
 int h1, h2, m1, m2, t1, t2,hu1,hu2 = 0;
 int temp = 0, humid = 0;
+
+// Buttons
 unsigned long previousMillis = 0;
 const long interval = 1000;
-int Mode = 0, lastButtonState=LOW, lastOnState=LOW;  // Mode toggle for time/temperature/humidity display and On/Off
+int Mode = 3; //Mode at startup
+int lastButtonState=LOW, lastOnState=LOW;  // Mode toggle for time/temperature/humidity display and On/Off
 unsigned long debounceTime = 200, lastDebounce = 0, lastBounce = 0;
 bool ScreenState=false;
-int row=0;int col=0;
+
 
 byte nombre[][4] = {
   {0x0F, 0x09, 0x09, 0x0F}, // 0
@@ -153,27 +162,34 @@ void ModeChangeAnimation() {
 }
 
 void snake(){
-  xValue = analogRead(VRX_PIN);
-  yValue = analogRead(VRY_PIN);
-  command = COMMAND_NO;
 
-  // Determine direction
-  if (xValue < LEFT_THRESHOLD) command |= COMMAND_LEFT;
-  else if (xValue > RIGHT_THRESHOLD) command |= COMMAND_RIGHT;
+// Get the current time
+  unsigned long currentMillis = millis();
 
-  if (yValue < UP_THRESHOLD) command |= COMMAND_UP;
-  else if (yValue > DOWN_THRESHOLD) command |= COMMAND_DOWN;
+  // Only update movement if enough time has passed
+  if (currentMillis - lastMoveTime >= snakeSpeed) {
+    lastMoveTime = currentMillis;  // Update the last move time
+    xValue = analogRead(VRX_PIN);
+    yValue = analogRead(VRY_PIN);
+    command = COMMAND_NO;
 
-  // Clear previous position
-  lc.setLed(0, row, col, false);
+    // Determine direction
+    if (xValue < LEFT_THRESHOLD) command |= COMMAND_UP;
+    else if (xValue > RIGHT_THRESHOLD) command |= COMMAND_DOWN;
+    if (yValue < UP_THRESHOLD) command |= COMMAND_RIGHT;
+    else if (yValue > DOWN_THRESHOLD) command |= COMMAND_LEFT;
+
+    // Clear previous position
+    lc.setLed(0, row, col, false);
 
 
-  if ((command & COMMAND_LEFT) && col>0) col--;
-  if ((command & COMMAND_RIGHT) && col<7) col++;
-  if ((command & COMMAND_UP) && row<7) row++;
-  if ((command & COMMAND_DOWN) && row>0) row--;
-  
-  lc.setLed(0,row,col,true);
+    if ((command & COMMAND_LEFT) && col>0) col--;
+    if ((command & COMMAND_RIGHT) && col<7) col++;
+    if ((command & COMMAND_UP) && row<7) row++;
+    if ((command & COMMAND_DOWN) && row>0) row--;
+    
+    lc.setLed(0,row,col,true);
+  }
 }
 
 //################################################################################ MAIN ###################################################################################
