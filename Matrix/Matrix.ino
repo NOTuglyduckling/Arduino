@@ -11,14 +11,16 @@ bool pmFlag;
 #define LOAD 10
 #define ModePin 2
 #define OnOff 3
-#define BRIGHTNESS 0
+#define BRIGHTNESS 8
 #define TEMP_SYMBOL 10
 #define CELSIUS_SYMBOL 11
 #define HUMIDITY_SYMBOL 12
 #define PERCENT_SYMBOL 13
+
 #define VRX_PIN  A0 // Arduino pin connected to VRX pin
 #define VRY_PIN  A1 // Arduino pin connected to VRY pin
 #define JoyButton 7  // Arduino pin connected to SW  pin
+#define MAX_LENGTH 64  // Maximum length of the snake
 
 #define LEFT_THRESHOLD  400
 #define RIGHT_THRESHOLD 800
@@ -36,12 +38,16 @@ DHT11 dht11(4);
 
 
 // SNake
-unsigned long lastMoveTime = 0;  // Stores the last update time
-const long snakeSpeed = 200;    // Delay in milliseconds between moves
 int command = COMMAND_NO;
 int xValue = 0;
 int yValue = 0;
-int row=0;int col=0;
+int row=0, col=0;
+
+int snakeLength = 1;                  // Initial length of the snake
+int snakeBody[MAX_LENGTH][2];         // Array to store snake body coordinates
+unsigned long lastMoveTime = 0;       // Last move time for movement timing
+const long snakeSpeed = 200;          // Movement interval in milliseconds
+int foodRow = 3, foodCol = 5;         // Initial food position
 
 // Time and humidity
 int hours,minutes,seconds;
@@ -51,7 +57,7 @@ int temp = 0, humid = 0;
 // Buttons
 unsigned long previousMillis = 0;
 const long interval = 1000;
-int Mode = 3; //Mode at startup
+int Mode = 0; //Mode at startup
 int lastButtonState=LOW, lastOnState=LOW;  // Mode toggle for time/temperature/humidity display and On/Off
 unsigned long debounceTime = 200, lastDebounce = 0, lastBounce = 0;
 bool ScreenState=false;
@@ -87,11 +93,15 @@ void setup() {
   myRTC.setDate(25);
   myRTC.setDoW(1);
   myRTC.setHour(21);// edit here to set time for now
-  myRTC.setMinute(3);
+  myRTC.setMinute(54);
   myRTC.setSecond(10);
   seconds = myRTC.getSecond();
   minutes = myRTC.getMinute();
   hours = myRTC.getHour(h12Flag, pmFlag);
+  snakeBody[0][0] = 4;  // Initial row of the snake's head
+  snakeBody[0][1] = 4;  // Initial column of the snake's head
+  // Generate initial food on the matrix
+  lc.setLed(0, foodRow, foodCol, true);
 }
 
 //############################################################################ END OF SETUP ##################################################################################
@@ -174,35 +184,79 @@ void snake(){
     command = COMMAND_NO;
 
     // Determine direction
-    if (xValue < LEFT_THRESHOLD) command |= COMMAND_UP;
-    else if (xValue > RIGHT_THRESHOLD) command |= COMMAND_DOWN;
+    if (xValue < LEFT_THRESHOLD) command |= COMMAND_DOWN;
+    else if (xValue > RIGHT_THRESHOLD) command |= COMMAND_UP;
     if (yValue < UP_THRESHOLD) command |= COMMAND_RIGHT;
     else if (yValue > DOWN_THRESHOLD) command |= COMMAND_LEFT;
 
-    // Clear previous position
-    lc.setLed(0, row, col, false);
+    // Calculate new head position
+    int newRow = snakeBody[0][0];
+    int newCol = snakeBody[0][1];
+
+    if ((command & COMMAND_LEFT) && newCol > 0) newCol--;
+    if ((command & COMMAND_RIGHT) && newCol < 7) newCol++;
+    if ((command & COMMAND_UP) && newRow > 0) newRow--;
+    if ((command & COMMAND_DOWN) && newRow < 7) newRow++;
 
 
-    if ((command & COMMAND_LEFT) && col>0) col--;
-    if ((command & COMMAND_RIGHT) && col<7) col++;
-    if ((command & COMMAND_UP) && row<7) row++;
-    if ((command & COMMAND_DOWN) && row>0) row--;
-    
-    lc.setLed(0,row,col,true);
+    // Check if the snake eats the food
+    if (newRow == foodRow && newCol == foodCol) {
+        snakeLength++;  // Increase snake length
+        generateFood(); // Generate new food
+    }
+
+    // Update snake body positions
+    for (int i = snakeLength - 1; i > 0; i--) {
+        snakeBody[i][0] = snakeBody[i - 1][0];  // Move each segment to the previous segment's position
+        snakeBody[i][1] = snakeBody[i - 1][1];
+    }
+
+    // Set the new head position
+    snakeBody[0][0] = newRow;
+    snakeBody[0][1] = newCol;
+
+    // Clear the matrix
+    lc.clearDisplay(0);
+
+    // Draw the snake
+    for (int i = 0; i < snakeLength; i++) {
+        lc.setLed(0, snakeBody[i][0], snakeBody[i][1], true);
+    }
+
+    // Draw the food
+    lc.setLed(0, foodRow, foodCol, true);
   }
 }
+
+void generateFood() {
+    bool valid = false;
+    while (!valid) {
+        foodRow = random(0, 8);
+        foodCol = random(0, 8);
+
+        // Ensure food does not spawn on the snake
+        valid = true;
+        for (int i = 0; i < snakeLength; i++) {
+            if (snakeBody[i][0] == foodRow && snakeBody[i][1] == foodCol) {
+                valid = false;
+                break;
+            }
+        }
+    }
+}
+
 
 //################################################################################ MAIN ###################################################################################
 
 void loop() {
   if (isButtonPressed(ModePin, lastButtonState, lastDebounce, debounceTime)) {
-      Mode = (Mode + 1) % 4;  // Cycle through modes
-      ModeChangeAnimation();
+    Mode = (Mode + 1) % 4;  // Cycle through modes
+    ModeChangeAnimation();
   }
 
   if (isButtonPressed(OnOff, lastOnState, lastBounce, debounceTime)) {
-      ScreenState = !ScreenState;    // Toggle screen state
-      lc.shutdown(0, ScreenState);  // Update the LED matrix
+    ScreenState = !ScreenState;    // Toggle screen state
+    lc.shutdown(0, ScreenState);  // Update the LED matrix
   }
   if (Mode==3){
     snake();
