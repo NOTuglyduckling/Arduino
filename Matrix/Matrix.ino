@@ -16,9 +16,27 @@ bool pmFlag;
 #define CELSIUS_SYMBOL 11
 #define HUMIDITY_SYMBOL 12
 #define PERCENT_SYMBOL 13
+#define VRX_PIN  A0 // Arduino pin connected to VRX pin
+#define VRY_PIN  A1 // Arduino pin connected to VRY pin
+#define JoyButton 7  // Arduino pin connected to SW  pin
+
+#define LEFT_THRESHOLD  400
+#define RIGHT_THRESHOLD 800
+#define UP_THRESHOLD    400
+#define DOWN_THRESHOLD  800
+
+#define COMMAND_NO     0x00
+#define COMMAND_LEFT   0x01
+#define COMMAND_RIGHT  0x02
+#define COMMAND_UP     0x04
+#define COMMAND_DOWN   0x08
 
 LedControl lc = LedControl(DATA_IN, CLK, LOAD, 1);
 DHT11 dht11(4);
+
+int command = COMMAND_NO;
+int xValue = 0;
+int yValue = 0;
 
 int hours,minutes,seconds;
 int h1, h2, m1, m2, t1, t2,hu1,hu2 = 0;
@@ -28,6 +46,7 @@ const long interval = 1000;
 int Mode = 0, lastButtonState=LOW, lastOnState=LOW;  // Mode toggle for time/temperature/humidity display and On/Off
 unsigned long debounceTime = 200, lastDebounce = 0, lastBounce = 0;
 bool ScreenState=false;
+int row=0;int col=0;
 
 byte nombre[][4] = {
   {0x0F, 0x09, 0x09, 0x0F}, // 0
@@ -58,9 +77,9 @@ void setup() {
   myRTC.setMonth(11);
   myRTC.setDate(25);
   myRTC.setDoW(1);
-  myRTC.setHour(17);// edit here to set time for now
-  myRTC.setMinute(57);
-  myRTC.setSecond(50);
+  myRTC.setHour(21);// edit here to set time for now
+  myRTC.setMinute(3);
+  myRTC.setSecond(10);
   seconds = myRTC.getSecond();
   minutes = myRTC.getMinute();
   hours = myRTC.getHour(h12Flag, pmFlag);
@@ -70,7 +89,6 @@ void setup() {
 
 
 void updateMatrix(int tl, int tr, int bl, int br) {
-  resetMatrix();
   displayDigitRotated(tl, 0, 4);
   displayDigitRotated(tr, 4, 4);
   displayDigitRotated(bl, 0, 0);
@@ -134,19 +152,45 @@ void ModeChangeAnimation() {
     resetMatrix();
 }
 
+void snake(){
+  xValue = analogRead(VRX_PIN);
+  yValue = analogRead(VRY_PIN);
+  command = COMMAND_NO;
 
+  // Determine direction
+  if (xValue < LEFT_THRESHOLD) command |= COMMAND_LEFT;
+  else if (xValue > RIGHT_THRESHOLD) command |= COMMAND_RIGHT;
+
+  if (yValue < UP_THRESHOLD) command |= COMMAND_UP;
+  else if (yValue > DOWN_THRESHOLD) command |= COMMAND_DOWN;
+
+  // Clear previous position
+  lc.setLed(0, row, col, false);
+
+
+  if ((command & COMMAND_LEFT) && col>0) col--;
+  if ((command & COMMAND_RIGHT) && col<7) col++;
+  if ((command & COMMAND_UP) && row<7) row++;
+  if ((command & COMMAND_DOWN) && row>0) row--;
+  
+  lc.setLed(0,row,col,true);
+}
 
 //################################################################################ MAIN ###################################################################################
 
 void loop() {
   if (isButtonPressed(ModePin, lastButtonState, lastDebounce, debounceTime)) {
-      Mode = (Mode + 1) % 3;  // Cycle through modes
+      Mode = (Mode + 1) % 4;  // Cycle through modes
       ModeChangeAnimation();
   }
 
   if (isButtonPressed(OnOff, lastOnState, lastBounce, debounceTime)) {
       ScreenState = !ScreenState;    // Toggle screen state
       lc.shutdown(0, ScreenState);  // Update the LED matrix
+  }
+  if (Mode==3){
+    snake();
+    return;
   }
 
   seconds = myRTC.getSecond();
@@ -163,9 +207,10 @@ void loop() {
     case 0: displayTime(); break;
     case 1: displayTemperature(); break;
     case 2: displayHumidity(); break;
+    case 3: snake(); break;
     }
   } else {
-    lc.clearDisplay(0);
+    resetMatrix();
   }
 }
 
